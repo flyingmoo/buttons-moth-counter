@@ -98,9 +98,29 @@
   <ul id="log"></ul>
 </div>
 
-<script>
-let count = Number(localStorage.getItem("count")) || 0;
-let log = JSON.parse(localStorage.getItem("log")) || [];
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 🔥 PASTE YOUR FIREBASE CONFIG HERE 🔥 */
+const firebaseConfig = {
+  apiKey: "AIzaSyDQdycDCF0UhS6rnfUSVklv94-YX4gQm6w",
+  authDomain: "buttons-moth-counter.firebaseapp.com",
+  projectId: "buttons-moth-counter",
+  storageBucket: "buttons-moth-counter.firebasestorage.app",
+  messagingSenderId: "424766321374",
+  appId: "1:424766321374:web:f6ecd2f283ee514056084f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const ref = doc(db, "stats", "buttons");
 
 const achievements = [
   { count: 1,  label: "🩸 First Blood" },
@@ -110,47 +130,53 @@ const achievements = [
   { count: 50, label: "👑 Unstoppable Horror" }
 ];
 
-function render() {
-  document.getElementById("count").textContent = count;
+async function render() {
+  const snap = await getDoc(ref);
+  const data = snap.data();
 
-  // Render log
+  document.getElementById("count").textContent = data.count;
+
+  // Log
   const logEl = document.getElementById("log");
   logEl.innerHTML = "";
-  log.slice().reverse().forEach(entry => {
+  (data.log || []).slice().reverse().forEach(entry => {
     const li = document.createElement("li");
     li.textContent = entry;
     logEl.appendChild(li);
   });
 
-  // Render achievements
+  // Achievements
   const achEl = document.getElementById("achievements");
   achEl.innerHTML = "";
   achievements.forEach(a => {
     const div = document.createElement("div");
-    div.className = "badge" + (count >= a.count ? " earned" : "");
+    div.className = "badge" + (data.count >= a.count ? " earned" : "");
     div.textContent = `${a.label} (${a.count})`;
     achEl.appendChild(div);
   });
 }
 
-function addMoth() {
-  count++;
-  log.push(`Moth eliminated on ${new Date().toLocaleString()}`);
-  localStorage.setItem("count", count);
-  localStorage.setItem("log", JSON.stringify(log));
+async function addMoth() {
+  const time = new Date().toLocaleString();
+  await updateDoc(ref, {
+    count: (await getDoc(ref)).data().count + 1,
+    log: arrayUnion(`Moth eliminated on ${time}`)
+  });
   render();
 }
 
-function resetAll() {
-  if (!confirm("Erase Buttons’ documented crimes?")) return;
-  count = 0;
-  log = [];
-  localStorage.clear();
+async function resetAll() {
+  if (!confirm("Erase Buttons’ global crimes?")) return;
+  await updateDoc(ref, { count: 0, log: [] });
   render();
 }
+
+window.addMoth = addMoth;
+window.resetAll = resetAll;
 
 render();
 </script>
+
 
 </body>
 </html>
